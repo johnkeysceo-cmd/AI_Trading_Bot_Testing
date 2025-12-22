@@ -1,0 +1,8 @@
+{
+	"coingecko": {
+		"key": ""
+	},
+	"binance": { "key": "", "secret": "" },
+	"kraken": { "key": "", "secret": "" },
+	"coinbasepro": { "key": "", "secret": "" }
+}

@@ -1,0 +1,94 @@
+{
+  "system": "AdvancedMLEnsemble_Phases1-12",
+  "date": "2025-12-21T19:23:15.244671",
+  "summary": {
+    "starting_capital": 200.0,
+    "final_capital": 200.20799430244196,
+    "total_pnl": 0.2079943024419606,
+    "total_return_pct": 0.001039971512209803,
+    "total_trades": 57,
+    "winning_trades": 2,
+    "losing_trades": 2,
+    "win_rate": 0.03508771929824561,
+    "avg_win": 0.2826676547486443,
+    "avg_loss": 0.17867050352766276,
+    "profit_factor": 1.5820611078363034,
+    "fees_paid": 0.5699363352557623,
+    "open_positions": 3
+  },
+  "trades": [
+    {
+      "symbol": "SOL",
+      "entry_price": 115.92985334969325,
+      "exit_price": 112.24620323109671,
+      "size": 0.03450362339314202,
+      "pnl": -0.1370992764041577,
+      "pnl_pct": -0.03177481910103942,
+      "entry_time": 1733731200.0,
+      "exit_time": 1733817600.0,
+      "reason": "stop_loss"
+    },
+    {
+      "symbol": "ADA",
+      "entry_price": 0.5747408903575274,
+      "exit_price": 0.6048888769970568,
+      "size": 6.9548871178895135,
+      "pnl": 0.19968269887338871,
+      "pnl_pct": 0.05245491863433516,
+      "entry_time": 1734249600.0,
+      "exit_time": 1734595200.0,
+      "reason": "take_profit"
+    },
+    {
+      "symbol": "SOL",
+      "entry_price": 114.72154166908496,
+      "exit_price": 108.69370376268056,
+      "size": 0.034877945416659596,
+      "pnl": -0.2202417306511678,
+      "pnl_pct": -0.05254320870087101,
+      "entry_time": 1734854400.0,
+      "exit_time": 1734940800.0,
+      "reason": "stop_loss"
+    },
+    {
+      "symbol": "ADA",
+      "entry_price": 0.6396774555308885,
+      "exit_price": 0.6997977137228988,
+      "size": 6.248222130197244,
+      "pnl": 0.36565261062389987,
+      "pnl_pct": 0.09398526972021326,
+      "entry_time": 1735113600.0,
+      "exit_time": 1735200000.0,
+      "reason": "take_profit"
+    }
+  ],
+  "open_positions": {
+    "BTC": {
+      "side": "buy",
+      "entry_price": 53899.31195342387,
+      "size": 7.428962895684016e-05,
+      "entry_time": "2024-12-30 00:00:00",
+      "stop_loss": 52821.32571435539,
+      "take_profit": 56594.27755109507,
+      "fees": 0.010010399715122098
+    },
+    "ETH": {
+      "side": "buy",
+      "entry_price": 2145.7914383260863,
+      "size": 0.001866052690177779,
+      "entry_time": "2024-12-30 00:00:00",
+      "stop_loss": 2102.8756095595645,
+      "take_profit": 2253.0810102423907,
+      "fees": 0.010010399715122098
+    },
+    "SOL": {
+      "side": "buy",
+      "entry_price": 94.75196730407107,
+      "size": 0.04225938521359649,
+      "entry_time": "2024-12-30 00:00:00",
+      "stop_loss": 92.85692795798965,
+      "take_profit": 99.48956566927463,
+      "fees": 0.010010399715122098
+    }
+  }
+}

@@ -1,0 +1,59 @@
+[project]
+name = "monster-crypto-ai-hub"
+version = "0.1.0"
+description = "Multi-agent autonomous crypto trading system"
+requires-python = ">=3.10"
+authors = [
+  { name="Your Name", email="you@example.com" }
+]
+
+dependencies = [
+  # Core
+  "numpy",
+  "pandas",
+  "scipy",
+
+  # Data & exchange
+  "ccxt",
+  "python-dotenv",
+  "requests",
+  "websockets",
+
+  # ML / DL
+  "torch",
+  "tensorflow",
+  "scikit-learn",
+  "xgboost",
+  "lightgbm",
+  "catboost",
+
+  # Reinforcement Learning
+  "stable-baselines3",
+  "gymnasium",
+  "finrl",
+
+  # Indicators
+  "pandas-ta",
+  "ta",
+
+  # NLP / Sentiment
+  "transformers",
+  "sentencepiece",
+
+  # Optimization
+  "optuna",
+  "ray[tune]",
+
+  # Bots / Backtesting
+  "freqtrade",
+  "backtrader",
+
+  # Utilities
+  "loguru",
+  "rich",
+  "pydantic",
+]
+
+[build-system]
+requires = ["setuptools>=65.0"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,16 @@
+#PYTHON
+__pycache__
+.pytest_cache
+*.pyc 
+#Databases
+*.db
+*.sqlite 
+*.sqlite3 
+#Logs
+*.log 
+#Test Outputs
+tests/output/ 
+tests/results/
+# Virtual Environments
+.venv/ 
+env/ 

@@ -1,0 +1,13 @@
+authorName: alan
+experimentName: crypto_agent_tuning
+trialConcurrency: 2
+maxExecDuration: 1h
+maxTrialNum: 50
+tuner:
+  name: TPE
+  classArgs:
+    optimize_mode: maximize
+trial:
+  command: python3 optimization/hyperparameter_nni_entry.py
+  codeDir: .
+  gpuNum: 0

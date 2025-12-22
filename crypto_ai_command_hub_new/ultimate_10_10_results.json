@@ -1,0 +1,11 @@
+{
+  "stats": {
+    "final": 200.0,
+    "pnl": 0.0,
+    "ret_pct": 0.0,
+    "trades": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "trades": []
+}
