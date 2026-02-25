@@ -10,20 +10,45 @@ from backtesting.phase2_backtest import Phase2Backtester, BacktestMetrics
 
 
 def generate_sample_ohlcv():
-    """Generate realistic sample OHLCV data for backtest."""
+    """Generate realistic sample OHLCV data with trend regimes and volatility clustering."""
     np.random.seed(42)
-    n_steps = 1000
-    
-    # Realistic price movement
-    prices = 30000 * np.cumprod(1 + np.random.normal(0.0001, 0.015, n_steps))
-    
-    # Create OHLCV
+    n_steps = 2000
+
+    # Multi-regime market: trending + ranging + volatile phases
+    prices = [30000.0]
+    for i in range(n_steps):
+        phase = i / n_steps
+        # Regime switching: bull -> range -> bear -> recovery
+        if phase < 0.25:
+            drift = 0.0008  # Bull market
+            vol = 0.012
+        elif phase < 0.45:
+            drift = 0.0001  # Ranging
+            vol = 0.018
+        elif phase < 0.65:
+            drift = -0.0005  # Bear market
+            vol = 0.022
+        elif phase < 0.80:
+            drift = 0.0003  # Recovery
+            vol = 0.015
+        else:
+            drift = 0.0006  # Second bull
+            vol = 0.014
+
+        # Volatility clustering (GARCH-like)
+        if np.random.random() < 0.03:
+            vol *= 2.5  # Occasional spikes
+
+        ret = drift + vol * np.random.normal()
+        prices.append(prices[-1] * (1 + ret))
+
+    prices = np.array(prices[1:])
     opens = prices
     highs = prices * (1 + np.abs(np.random.normal(0, 0.005, n_steps)))
     lows = prices * (1 - np.abs(np.random.normal(0, 0.005, n_steps)))
     closes = prices
     volumes = np.random.uniform(100, 1000, n_steps) * 1e6
-    
+
     ohlcv = np.column_stack([opens, highs, lows, closes, volumes])
     return ohlcv.astype(np.float32)
 

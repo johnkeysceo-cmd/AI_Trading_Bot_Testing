@@ -81,59 +81,76 @@ class Phase2Backtester:
         self.max_portfolio = initial_capital
     
     def run(self) -> BacktestMetrics:
-        """Run the full backtest."""
+        """Run the full backtest with stop-loss, take-profit, and trailing stops."""
         logger.info(f"Starting {self.phase} backtest with {len(self.ohlcv)} bars")
-        
+
+        self.stop_loss = 0.0
+        self.take_profit = 0.0
+        self.trailing_stop = 0.0
+        self.best_price = 0.0
+
         for step in range(len(self.ohlcv) - 1):
             self.current_step = step
-            
-            # Generate signals
-            signal = self._generate_signal(step)
-            
-            # Execute trades
-            if signal == "BUY" and self.position == 0:
-                self._open_position(step)
-            elif signal == "SELL" and self.position > 0:
-                self._close_position(step)
-            
-            # Update portfolio
+            price = self.ohlcv[step, 3]
+
+            # Check exit conditions for open positions
+            if self.position > 0:
+                # Update trailing stop
+                if price > self.best_price:
+                    self.best_price = price
+                    closes = self.ohlcv[max(0, step - 14):step + 1, 3]
+                    atr = np.mean(np.abs(np.diff(closes))) if len(closes) > 1 else price * 0.02
+                    new_trail = price - 1.2 * atr
+                    self.trailing_stop = max(self.trailing_stop, new_trail)
+
+                # Check stops
+                if price <= self.stop_loss:
+                    self._close_position(step)
+                elif price >= self.take_profit:
+                    self._close_position(step)
+                elif self.trailing_stop > self.stop_loss and price <= self.trailing_stop:
+                    self._close_position(step)
+
+            # Generate signals for new entries
+            if self.position == 0:
+                signal = self._generate_signal(step)
+                if signal == "BUY":
+                    self._open_position(step)
+            elif self.position > 0:
+                signal = self._generate_signal(step)
+                if signal == "SELL":
+                    self._close_position(step)
+
             self._update_portfolio(step)
-        
-        # Close any open position at end
+
         if self.position > 0:
             self._close_position(len(self.ohlcv) - 1)
-        
-        # Calculate metrics
+
         return self._calculate_metrics()
     
     def _generate_signal(self, step: int) -> str:
         """Generate trading signal using Phase 1 + Phase 2 models."""
-        price = self.ohlcv[step, 3]
-        
-        # Phase 1: Technical + Multi-timeframe consensus (simplified)
         phase1_signal = self._phase1_signal(step)
-        
+
         if self.phase == "Phase 1":
             return phase1_signal
-        
-        # Phase 2: RL + Transformer + MetaLearner ensemble
+
         phase2_signal = self._phase2_signal(step)
-        
-        # Combine: Phase 2 overrides Phase 1 if confidence high
-        if phase2_signal == "BUY" and phase1_signal == "BUY":
-            return "BUY"
-        elif phase2_signal == "SELL" and phase1_signal == "SELL":
-            return "SELL"
+
+        # Phase 2 is more aggressive: either signal triggers, with preference for agreement
+        if phase1_signal == phase2_signal:
+            return phase1_signal
+        elif phase2_signal != "HOLD":
+            return phase2_signal  # Phase 2 ML models can trade independently
         else:
-            return phase1_signal  # Conservative: require agreement
+            return phase1_signal
     
     def _phase1_signal(self, step: int) -> str:
-        """Phase 1 signal: RSI + MACD + trend."""
-        if step < 50:
+        """Phase 1 signal: RSI + MACD + trend with responsive thresholds."""
+        if step < 30:
             return "HOLD"
-        
-        # RSI indicator
-        closes = self.ohlcv[max(0, step-14):step+1, 3]
+
+        closes = self.ohlcv[max(0, step - 14):step + 1, 3]
         deltas = np.diff(closes)
         gains = np.where(deltas > 0, deltas, 0).mean()
         losses = np.where(deltas < 0, -deltas, 0).mean()
@@ -141,120 +158,185 @@ class Phase2Backtester:
             rsi = 100 if gains > 0 else 50
         else:
             rsi = 100 - (100 / (1 + gains / losses))
-        
-        # Trend (EMA)
-        ema_short = self.ohlcv[step-10:step+1, 3].mean()
-        ema_long = self.ohlcv[max(0, step-30):step+1, 3].mean()
+
+        ema_short = self.ohlcv[step - 8:step + 1, 3].mean()
+        ema_long = self.ohlcv[max(0, step - 21):step + 1, 3].mean()
         trend = "UP" if ema_short > ema_long else "DOWN"
-        
-        # Signal
-        if rsi < 30 and trend == "UP":
+
+        momentum = (closes[-1] - closes[0]) / closes[0] if len(closes) > 1 else 0
+
+        # More responsive entry criteria
+        if rsi < 35 and trend == "UP":
             return "BUY"
-        elif rsi > 70 and trend == "DOWN":
+        elif rsi < 40 and momentum > 0.01 and trend == "UP":
+            return "BUY"
+        elif rsi > 65 and trend == "DOWN":
+            return "SELL"
+        elif rsi > 60 and momentum < -0.01 and trend == "DOWN":
             return "SELL"
         else:
             return "HOLD"
     
     def _phase2_signal(self, step: int) -> str:
-        """Phase 2 signal: RL + Transformer + MetaLearner."""
-        if step < 100:
-            return "HOLD"
-        
-        # Mock RL prediction (in production: use actual PPO)
-        rl_signal = self._mock_rl_prediction(step)
-        
-        # Mock Transformer prediction
-        transformer_signal = self._mock_transformer_prediction(step)
-        
-        # Mock MetaLearner allocation
-        confidence = self._mock_metalearner_confidence(step)
-        
-        # Combine: majority vote with confidence weighting
-        buy_votes = (1 if rl_signal == "BUY" else 0) + (1 if transformer_signal == "BUY" else 0)
-        
-        if buy_votes >= 1.5 and confidence > 0.6:
-            return "BUY"
-        elif buy_votes <= 0.5 and confidence > 0.6:
-            return "SELL"
-        else:
-            return "HOLD"
-    
-    def _mock_rl_prediction(self, step: int) -> str:
-        """Mock PPO trader prediction."""
-        # Simulated: PPO learns to trade on volatility
-        closes = self.ohlcv[max(0, step-20):step+1, 3]
-        returns = np.diff(closes) / closes[:-1]
-        volatility = np.std(returns)
-        
-        # PPO buys on low volatility
-        if volatility < 0.01:
-            return "BUY"
-        elif volatility > 0.02:
-            return "SELL"
-        else:
-            return "HOLD"
-    
-    def _mock_transformer_prediction(self, step: int) -> str:
-        """Mock Transformer trader prediction."""
-        # Simulated: Transformer learns to follow price momentum
-        closes = self.ohlcv[max(0, step-50):step+1, 3]
-        momentum = (closes[-1] - closes[0]) / closes[0]
-        
-        if momentum > 0.02:
-            return "BUY"
-        elif momentum < -0.02:
-            return "SELL"
-        else:
-            return "HOLD"
-    
-    def _mock_metalearner_confidence(self, step: int) -> float:
-        """Mock MetaLearner confidence score."""
-        # Simulated: ML model learns to trust ensemble when RSI/MACD align
+        """Phase 2 signal: RL + Transformer + MetaLearner with better thresholds."""
         if step < 50:
-            return 0.5
-        
-        closes = self.ohlcv[max(0, step-14):step+1, 3]
+            return "HOLD"
+
+        rl_signal = self._mock_rl_prediction(step)
+        transformer_signal = self._mock_transformer_prediction(step)
+        mean_rev_signal = self._mock_mean_reversion(step)
+        confidence = self._mock_metalearner_confidence(step)
+
+        buy_votes = sum(1 for s in [rl_signal, transformer_signal, mean_rev_signal] if s == "BUY")
+        sell_votes = sum(1 for s in [rl_signal, transformer_signal, mean_rev_signal] if s == "SELL")
+
+        if buy_votes >= 2 and confidence > 0.5:
+            return "BUY"
+        elif sell_votes >= 2 and confidence > 0.5:
+            return "SELL"
+        elif buy_votes >= 1 and confidence > 0.7:
+            return "BUY"
+        elif sell_votes >= 1 and confidence > 0.7:
+            return "SELL"
+        else:
+            return "HOLD"
+
+    def _mock_rl_prediction(self, step: int) -> str:
+        """RL model: buys dips in uptrends, sells rallies in downtrends."""
+        closes = self.ohlcv[max(0, step - 20):step + 1, 3]
+        returns = np.diff(closes) / closes[:-1]
+        recent_return = returns[-1] if len(returns) > 0 else 0
+        trend = np.mean(returns) if len(returns) > 1 else 0
+
+        if trend > 0 and recent_return < -0.005:
+            return "BUY"  # Buy the dip in uptrend
+        elif trend < 0 and recent_return > 0.005:
+            return "SELL"  # Sell the rally in downtrend
+        elif trend > 0.002:
+            return "BUY"
+        elif trend < -0.002:
+            return "SELL"
+        else:
+            return "HOLD"
+
+    def _mock_transformer_prediction(self, step: int) -> str:
+        """Transformer: multi-scale momentum with breakout detection."""
+        closes = self.ohlcv[max(0, step - 50):step + 1, 3]
+        short_mom = (closes[-1] - closes[-min(10, len(closes))]) / closes[-min(10, len(closes))]
+        long_mom = (closes[-1] - closes[0]) / closes[0]
+
+        # Breakout detection: price near 20-period high/low
+        recent = closes[-min(20, len(closes)):]
+        near_high = closes[-1] >= np.percentile(recent, 90)
+        near_low = closes[-1] <= np.percentile(recent, 10)
+
+        if near_high and short_mom > 0.005:
+            return "BUY"  # Breakout
+        elif near_low and short_mom < -0.005:
+            return "SELL"
+        elif short_mom > 0.01 and long_mom > 0:
+            return "BUY"
+        elif short_mom < -0.01 and long_mom < 0:
+            return "SELL"
+        else:
+            return "HOLD"
+
+    def _mock_mean_reversion(self, step: int) -> str:
+        """Mean-reversion model for oversold bounces."""
+        closes = self.ohlcv[max(0, step - 14):step + 1, 3]
         deltas = np.diff(closes)
         gains = np.where(deltas > 0, deltas, 0).mean()
         losses = np.where(deltas < 0, -deltas, 0).mean()
         rsi = 100 - (100 / (1 + gains / (losses + 1e-6)))
-        
-        # High confidence when RSI at extremes (consensus)
-        if rsi < 30 or rsi > 70:
-            return 0.85
+
+        if rsi < 30:
+            return "BUY"
+        elif rsi > 70:
+            return "SELL"
         else:
-            return 0.55
+            return "HOLD"
+
+    def _mock_metalearner_confidence(self, step: int) -> float:
+        """MetaLearner confidence with trend-regime awareness."""
+        if step < 30:
+            return 0.5
+
+        closes = self.ohlcv[max(0, step - 14):step + 1, 3]
+        deltas = np.diff(closes)
+        gains = np.where(deltas > 0, deltas, 0).mean()
+        losses = np.where(deltas < 0, -deltas, 0).mean()
+        rsi = 100 - (100 / (1 + gains / (losses + 1e-6)))
+
+        # Trend strength via ADX approximation
+        ema_s = self.ohlcv[step - 8:step + 1, 3].mean()
+        ema_l = self.ohlcv[max(0, step - 21):step + 1, 3].mean()
+        trend_strength = abs(ema_s - ema_l) / ema_l
+
+        if rsi < 30 or rsi > 70:
+            return 0.9
+        elif trend_strength > 0.02:
+            return 0.75
+        elif rsi < 40 or rsi > 60:
+            return 0.65
+        else:
+            return 0.5
     
     def _open_position(self, step: int):
-        """Open a long position."""
+        """Open a position with volatility-scaled sizing and stop-loss."""
         price = self.ohlcv[step, 3]
-        position_size = (self.cash * 0.9) / price  # Use 90% of cash
-        
+        if self.cash <= 0 or price <= 0:
+            return
+
+        closes = self.ohlcv[max(0, step - 14):step + 1, 3]
+        atr = np.mean(np.abs(np.diff(closes))) if len(closes) > 1 else price * 0.02
+
+        risk_per_share = max(1.5 * atr, price * 0.005)
+        risk_budget = self.cash * 0.02
+
+        position_size = min(
+            risk_budget / risk_per_share,
+            (self.cash * 0.30) / price  # Max 30% of cash per trade
+        )
+
+        if position_size * price < 10:
+            return
+
         fee = position_size * price * 0.001
-        self.cash -= fee
+        self.cash -= (position_size * price + fee)
         self.position = position_size
         self.entry_price = price
-    
+        self.stop_loss = price - 1.5 * atr
+        self.take_profit = price + 3.0 * atr
+        self.trailing_stop = self.stop_loss
+        self.best_price = price
+
     def _close_position(self, step: int):
         """Close position and record trade."""
         if self.position == 0:
             return
-        
+
         price = self.ohlcv[step, 3]
+        trade_value = self.position * price
         pnl = self.position * (price - self.entry_price)
-        fee = self.position * price * 0.001
-        
-        self.cash += (self.position * price) - fee
+        fee = trade_value * 0.001
+        net_pnl = pnl - fee
+        entry_value = self.position * self.entry_price
+
+        self.cash += trade_value - fee
         self.trades.append({
             "entry_price": self.entry_price,
             "exit_price": price,
             "position_size": self.position,
-            "pnl": pnl,
-            "return": pnl / (self.position * self.entry_price)
+            "pnl": net_pnl,
+            "return": net_pnl / entry_value if entry_value > 0 else 0
         })
-        
+
         self.position = 0.0
         self.entry_price = 0.0
+        self.stop_loss = 0.0
+        self.take_profit = 0.0
+        self.trailing_stop = 0.0
+        self.best_price = 0.0
     
     def _update_portfolio(self, step: int):
         """Update portfolio value."""
